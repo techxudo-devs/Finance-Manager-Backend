@@ -3,9 +3,6 @@ import dotenv from "dotenv";
 import cors from "cors";
 import path from "path";
 import cookieParser from "cookie-parser";
-import http from "http";
-import { Server } from "socket.io";
-import jwt from "jsonwebtoken";
 import connectDB from "./config/db.js";
 import userRoutes from "./routes/userRoutes.js";
 import userDashboardRoutes from "./routes/userDashboardRoutes.js";
@@ -15,7 +12,6 @@ import deleteUserRoute from "./routes/deleteUserRoute.js";
 import sendReminderRoute from "./routes/reminderUserRoute.js";
 import paymentsDoneRoute from "./routes/paymentsDoneRoute.js";
 import schedulePaymentRoute from "./routes/schedulePaymentRoute.js";
-import "./config/cron.js";
 import contactRoute from "./routes/contactRoute.js";
 import transactionRoute from "./routes/transactionRoute.js";
 import shareRoute from "./routes/shareRoute.js";
@@ -31,12 +27,49 @@ dotenv.config();
 
 const app = express();
 
-connectDB();
+const allowedOrigins = new Set([
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "https://finance-manage-kappa.vercel.app",
+    "https://finance-manageb-b.vercel.app",
+]);
+
+const isAllowedVercelOrigin = (origin) =>
+    /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin || "");
+
+const dbReady = connectDB();
 
 app.use(cors({
-    origin: ["http://localhost:5173", "http://localhost:5174", "https://finance-manage-kappa.vercel.app", "https://finance-manageb-b.vercel.app"],
+    origin: (origin, callback) => {
+        if (!origin || allowedOrigins.has(origin) || isAllowedVercelOrigin(origin)) {
+            callback(null, true);
+            return;
+        }
+
+        callback(new Error(`CORS blocked for origin: ${origin}`));
+    },
     credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
 }));
+
+app.use((req, res, next) => {
+    if (req.method === "OPTIONS") {
+        res.sendStatus(204);
+        return;
+    }
+
+    next();
+});
+
+app.use(async (req, res, next) => {
+    try {
+        await dbReady;
+        next();
+    } catch (error) {
+        next(error);
+    }
+});
 
 app.use(cookieParser());
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
@@ -108,6 +141,4 @@ app.use("/api", transactionPictureUploadRoute);
 app.use(notFound);
 app.use(errorHandler);
 
-const PORT = process.env.PORT || 8080;
-
-app.listen(PORT, () => console.log(`Server is running on Port ${PORT}`));
+export default app;
