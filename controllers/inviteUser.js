@@ -2,71 +2,125 @@ import Invite from "../models/inviteModel.js";
 import User from "../models/userModel.js";
 import ConnectionRequest from "../models/connectionRequestModel.js";
 import jwt from "jsonwebtoken";
-import { sendInviteEmail, sendConnectionRequestEmail } from "../config/mailer.js";
+import { buildInviteLink, buildInviteWhatsappMessage, sendInviteEmail, sendConnectionRequestEmail } from "../config/mailer.js";
+
+const normalizePhoneNumber = (phone) => {
+    if (typeof phone !== "string") {
+        return "";
+    }
+
+    const trimmedPhone = phone.trim();
+    const normalizedPhone = trimmedPhone.startsWith("+")
+        ? `+${trimmedPhone.slice(1).replace(/\D/g, "")}`
+        : `+${trimmedPhone.replace(/\D/g, "")}`;
+
+    return /^\+\d{8,15}$/.test(normalizedPhone) ? normalizedPhone : "";
+};
 
 export const inviteUser = async (req, res) => {
     try {
-        const { emails } = req.body;
+        const { emails, phoneNumbers, channel = "email" } = req.body;
         const requester = req.user;
 
-        if (!emails || !Array.isArray(emails) || emails.length === 0) {
+        if (channel === "email" && (!emails || !Array.isArray(emails) || emails.length === 0)) {
             return res.status(400).json({ message: "Emails are required" });
+        }
+
+        if (channel === "whatsapp" && (!phoneNumbers || !Array.isArray(phoneNumbers) || phoneNumbers.length === 0)) {
+            return res.status(400).json({ message: "Phone numbers are required" });
         }
 
         const results = [];
 
-        for (const email of emails) {
-            const recipient = await User.findOne({ email });
+        if (channel === "email") {
+            for (const email of emails) {
+                const normalizedEmail = email?.trim().toLowerCase();
+                const recipient = await User.findOne({ email: normalizedEmail });
 
-            if (recipient) {
-                if (recipient._id.equals(requester._id)) {
-                    results.push({ email, status: "❌ You cannot invite yourself" });
+                if (recipient) {
+                    if (recipient._id.equals(requester._id)) {
+                        results.push({ contact: normalizedEmail, status: "❌ You cannot invite yourself" });
+                        continue;
+                    }
+
+                    const isAlreadyConnected = requester.invitedUsers.some(userId => userId.equals(recipient._id))
+                        || recipient.invitedUsers.some(userId => userId.equals(requester._id));
+
+                    if (isAlreadyConnected) {
+                        results.push({ contact: normalizedEmail, status: "🤝 Already connected" });
+                        continue;
+                    }
+
+                    const existingRequest = await ConnectionRequest.findOne({
+                        requester: requester._id,
+                        recipient: recipient._id,
+                        status: "pending"
+                    });
+
+                    if (existingRequest) {
+                        results.push({ contact: normalizedEmail, status: "⏳ Request already pending" });
+                        continue;
+                    }
+
+                    await ConnectionRequest.create({
+                        requester: requester._id,
+                        recipient: recipient._id,
+                    });
+
+                    await sendConnectionRequestEmail(normalizedEmail, requester.name);
+                    results.push({ contact: normalizedEmail, status: "✅ Connection request sent successfully" });
+                } else {
+                    const rawJwtToken = jwt.sign({ email: normalizedEmail, channel }, process.env.JWT_SECRET, { expiresIn: "7d" });
+
+                    await Invite.findOneAndUpdate(
+                        { email: normalizedEmail, invitedBy: requester._id, channel: "email" },
+                        {
+                            channel: "email",
+                            email: normalizedEmail,
+                            phone: null,
+                            token: rawJwtToken,
+                            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+                        },
+                        { upsert: true, new: true }
+                    );
+
+                    const fullInviteLink = buildInviteLink(rawJwtToken);
+                    await sendInviteEmail(normalizedEmail, requester.name, fullInviteLink);
+                    results.push({ contact: normalizedEmail, status: "✅ Invitation sent to new user" });
+                }
+            }
+        } else {
+            for (const rawPhoneNumber of phoneNumbers) {
+                const normalizedPhone = normalizePhoneNumber(rawPhoneNumber);
+
+                if (!normalizedPhone) {
+                    results.push({ contact: rawPhoneNumber, status: "❌ Invalid WhatsApp number" });
                     continue;
                 }
 
-                // Check karein kya pehle se connected hain? (Purane logic se)
-                const isAlreadyConnected = requester.invitedUsers.some(userId => userId.equals(recipient._id))
-                    || recipient.invitedUsers.some(userId => userId.equals(requester._id));
-
-                if (isAlreadyConnected) {
-                    results.push({ email, status: "🤝 Already connected" });
-                    continue;
-                }
-
-                // Check karein kya pending request mojood hai?
-                const existingRequest = await ConnectionRequest.findOne({
-                    requester: requester._id,
-                    recipient: recipient._id,
-                    status: "pending"
-                });
-
-                if (existingRequest) {
-                    results.push({ email, status: "⏳ Request already pending" });
-                    continue;
-                }
-
-                // Nayi connection request banayein
-                await ConnectionRequest.create({
-                    requester: requester._id,
-                    recipient: recipient._id,
-                });
-
-                // User ko connection request ka email bhejein
-                await sendConnectionRequestEmail(email, requester.name);
-                results.push({ email, status: "✅ Connection request sent successfully" });
-
-            } else {
-                const rawJwtToken = jwt.sign({ email }, process.env.JWT_SECRET, { expiresIn: "7d" });
+                const rawJwtToken = jwt.sign({ phone: normalizedPhone, channel }, process.env.JWT_SECRET, { expiresIn: "7d" });
 
                 await Invite.findOneAndUpdate(
-                    { email, invitedBy: requester._id },
-                    { token: rawJwtToken, expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) },
+                    { phone: normalizedPhone, invitedBy: requester._id, channel: "whatsapp" },
+                    {
+                        channel: "whatsapp",
+                        email: null,
+                        phone: normalizedPhone,
+                        token: rawJwtToken,
+                        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+                    },
                     { upsert: true, new: true }
                 );
 
-                const fullInviteLink = `https://finance-manage-kappa.vercel.app/register?token=${rawJwtToken}`;
-                await sendInviteEmail(email, fullInviteLink);
-                results.push({ email, status: "✅ Invitation sent to new user" });
+                const fullInviteLink = buildInviteLink(rawJwtToken);
+                const whatsappMessage = buildInviteWhatsappMessage(requester.name, fullInviteLink);
+                const whatsappUrl = `https://wa.me/${normalizedPhone.replace(/\D/g, "")}?text=${encodeURIComponent(whatsappMessage)}`;
+
+                results.push({
+                    contact: normalizedPhone,
+                    status: "✅ WhatsApp invitation ready",
+                    whatsappUrl
+                });
             }
         }
 
@@ -94,7 +148,10 @@ export const getPendingInvites = async (req, res) => {
         const pendingInviteUsers = invites.map(invite => ({
             _id: invite._id,
             name: 'Invited User',
-            email: invite.email,
+            email: invite.email || invite.phone,
+            phone: invite.phone || "",
+            channel: invite.channel,
+            contact: invite.email || invite.phone,
             profileImage: 'https://images.unsplash.com/photo-1615109398623-88346a601842?ixlib=rb-4.1.0&auto=format&fit=crop&q=60&w=500',
             connectionStatus: 'Pending (Unregistered)'
         }));

@@ -8,7 +8,22 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-export const sendInviteEmail = async (to, inviteLink) => { // This function now expects the full URL
+const INVITE_BASE_URL = "https://finance-manage-kappa.vercel.app/register";
+
+export const buildInviteLink = (token) => `${INVITE_BASE_URL}?token=${token}`;
+
+export const buildInviteWhatsappMessage = (inviterName, inviteLink) => `Hello,
+
+${inviterName} has invited you to join Finantic Dashboard, a professional platform for managing and collaborating on financial transactions with clarity and control.
+
+To accept this invitation and create your account, open the secure registration link below:
+${inviteLink}
+
+This invitation link expires in 7 days.
+
+POWERED BY TECHXUDO`;
+
+export const sendInviteEmail = async (to, inviterName, inviteLink) => { // This function now expects the full URL
   try {
     console.log("📧 Preparing invite for:", to);
     console.log("Full invite URL received by mailer:", inviteLink);
@@ -51,7 +66,7 @@ export const sendInviteEmail = async (to, inviteLink) => { // This function now 
                             </h2>
                             
                             <p style="margin: 0 0 20px 0; font-size: 15px; line-height: 1.6; color: #333333;">
-                                You have been invited to join Finantic Dashboard. Our platform provides comprehensive financial management tools and insights to help you track, analyze, and optimize your finances.
+                                <strong style="color: #1a1a1a;">${inviterName}</strong> has invited you to join Finantic Dashboard. Our platform provides comprehensive financial management tools and insights to help you track, analyze, and optimize your finances.
                             </p>
                             
                             <p style="margin: 0 0 30px 0; font-size: 15px; line-height: 1.6; color: #333333;">
@@ -95,6 +110,9 @@ export const sendInviteEmail = async (to, inviteLink) => { // This function now 
                             </p>
                             <p style="margin: 0 0 15px 0; font-size: 12px; color: #999999;">
                                 © 2025 Finantic Dashboard. All rights reserved.
+                            </p>
+                            <p style="margin: 0 0 15px 0; font-size: 12px; font-weight: 600; color: #666666; text-transform: uppercase;">
+                                Powered by Techxudo
                             </p>
                             <p style="margin: 0; font-size: 12px; color: #999999;">
                                 If you did not expect this invitation, you can safely ignore this email.
@@ -223,6 +241,9 @@ export const sendShareNotificationEmail = async (recipientEmail, sharerName, sha
                             <p style="margin: 0 0 15px 0; font-size: 12px; color: #999999;">
                                 © 2025 Finantic Dashboard. All rights reserved.
                             </p>
+                            <p style="margin: 0 0 15px 0; font-size: 12px; font-weight: 600; color: #666666; text-transform: uppercase;">
+                                Powered by Techxudo
+                            </p>
                             <p style="margin: 0; font-size: 12px; color: #999999;">
                                 This is an automated notification. Please do not reply to this email.
                             </p>
@@ -320,6 +341,9 @@ export const sendConnectionRequestEmail = async (to, requesterName) => {
                             </p>
                             <p style="margin: 0 0 15px 0; font-size: 12px; color: #999999;">
                                 © 2025 Finantic Dashboard. All rights reserved.
+                            </p>
+                            <p style="margin: 0 0 15px 0; font-size: 12px; font-weight: 600; color: #666666; text-transform: uppercase;">
+                                Powered by Techxudo
                             </p>
                             <p style="margin: 0; font-size: 12px; color: #999999;">
                                 This is an automated notification. Please do not reply to this email.

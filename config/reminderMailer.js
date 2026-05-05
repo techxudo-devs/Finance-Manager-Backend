@@ -109,6 +109,9 @@ const sendReminderEmail = async ({ subject, email, amount, currency, message }) 
                             <p style="margin: 0 0 15px 0; font-size: 12px; color: #999999;">
                                 © 2025 Finantic Dashboard. All rights reserved.
                             </p>
+                            <p style="margin: 0 0 15px 0; font-size: 12px; font-weight: 600; color: #666666; text-transform: uppercase;">
+                                Powered by Techxudo
+                            </p>
                             <p style="margin: 0; font-size: 12px; color: #999999;">
                                 This is an automated reminder. If you have already completed this payment, please disregard this email.
                             </p>

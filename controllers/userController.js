@@ -31,7 +31,7 @@ export const registerUser = async (req, res) => {
                 return res.status(400).json({ message: "This invitation link is invalid or has expired." });
             }
 
-            if (invite.email.toLowerCase() !== email.toLowerCase()) {
+            if (invite.channel === "email" && invite.email?.toLowerCase() !== email.toLowerCase()) {
                 return res.status(400).json({ message: "This invitation is not for this email address." });
             }
 
@@ -177,6 +177,9 @@ export const registerUser = async (req, res) => {
                             </p>
                             <p style="margin: 0; font-size: 12px; color: #999999;">
                                 © 2025 Finantic Dashboard. All rights reserved.
+                            </p>
+                            <p style="margin: 15px 0 0 0; font-size: 12px; font-weight: 600; color: #666666; text-transform: uppercase;">
+                                Powered by Techxudo
                             </p>
                         </td>
                     </tr>
@@ -410,6 +413,9 @@ export const forgotPassword = async (req, res) => {
                             </p>
                             <p style="margin: 0; font-size: 12px; color: #999999;">
                                 © 2025 Finantic Dashboard. All rights reserved.
+                            </p>
+                            <p style="margin: 15px 0 0 0; font-size: 12px; font-weight: 600; color: #666666; text-transform: uppercase;">
+                                Powered by Techxudo
                             </p>
                         </td>
                     </tr>

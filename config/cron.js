@@ -12,7 +12,14 @@ const transporter = nodemailer.createTransport({
     },
 });
 
-cron.schedule("0 * * * *", async () => {
+let isProcessingDueSchedules = false;
+
+cron.schedule("* * * * *", async () => {
+    if (isProcessingDueSchedules) {
+        return;
+    }
+
+    isProcessingDueSchedules = true;
     // console.log(`\n🕒 Cron job running at: ${new Date().toLocaleString()}`);
 
     const nowUTC = new Date();
@@ -151,6 +158,9 @@ cron.schedule("0 * * * *", async () => {
                             <p style="margin: 0 0 15px 0; font-size: 12px; color: #999999;">
                                 © 2025 Finantic Dashboard. All rights reserved.
                             </p>
+                            <p style="margin: 0 0 15px 0; font-size: 12px; font-weight: 600; color: #666666; text-transform: uppercase;">
+                                Powered by Techxudo
+                            </p>
                             <p style="margin: 0; font-size: 12px; color: #999999;">
                                 This is an automated reminder sent on behalf of Michael Chen.
                             </p>
@@ -175,5 +185,7 @@ cron.schedule("0 * * * *", async () => {
         }
     } catch (err) {
         console.error("   - ❌ CRON JOB ERROR:", err);
+    } finally {
+        isProcessingDueSchedules = false;
     }
 });

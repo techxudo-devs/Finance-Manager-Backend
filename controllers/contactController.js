@@ -35,6 +35,7 @@ export const submitContact = async (req, res) => {
       <p style="font-size: 1rem; color: #555;">Message: ${message}</p>
       <hr style="border:none; border-top:1px solid #eee; margin:20px 0;" />
       <p style="font-size: 0.85rem; color:#888;">This is an automated email. Please do not reply directly.</p>
+      <p style="font-size: 0.85rem; color:#666; font-weight:600; text-transform:uppercase; margin-top:12px;">Powered by Techxudo</p>
     </div>
   `
         });
