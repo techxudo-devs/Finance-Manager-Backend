@@ -32,6 +32,8 @@ const allowedOrigins = new Set([
     "http://localhost:5174",
     "https://finance-manage-kappa.vercel.app",
     "https://finance-manageb-b.vercel.app",
+    "https://finantic-manager.vercel.app",
+    "https://finantic-manager-backend.vercel.app"
 ]);
 
 const isAllowedVercelOrigin = (origin) =>
